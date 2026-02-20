@@ -8,6 +8,10 @@ app = Flask(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# =============================
+# CONEXIÓN DB
+# =============================
+
 def get_db():
     return psycopg2.connect(DATABASE_URL)
 
@@ -57,6 +61,8 @@ def register():
             )
             conn.commit()
         except:
+            cur.close()
+            conn.close()
             return "Usuario ya existe"
 
         cur.close()
@@ -73,6 +79,8 @@ def register():
             <input type="password" name="password"><br><br>
             <button type="submit">Crear cuenta</button>
         </form>
+        <br>
+        <a href="/">Volver al login</a>
     """)
 
 # =============================
@@ -103,6 +111,8 @@ def login():
             else:
                 return redirect(f"/dashboard?token={token}")
 
+        cur.close()
+        conn.close()
         return "Credenciales inválidas"
 
     return render_template_string("""
@@ -141,6 +151,7 @@ def dashboard():
         <h2>Dashboard Usuario</h2>
         <p>Bienvenido {user[0]}</p>
         <p>Sistema estable ✅</p>
+        <a href="/">Cerrar sesión</a>
     """
 
 # =============================
@@ -153,7 +164,6 @@ def admin():
 
     conn = get_db()
     cur = conn.cursor()
-
     cur.execute("SELECT username, rol FROM usuarios WHERE token=%s", (token,))
     user = cur.fetchone()
 
@@ -166,7 +176,6 @@ def admin():
     users = cur.fetchall()
 
     tabla = ""
-
     for u in users:
         tabla += f"""
         <tr>
@@ -181,7 +190,6 @@ def admin():
 
     return f"""
     <h2>Panel de Administración</h2>
-
     <table border="1" cellpadding="10">
         <tr>
             <th>ID</th>
@@ -190,6 +198,8 @@ def admin():
         </tr>
         {tabla}
     </table>
+    <br>
+    <a href="/">Cerrar sesión</a>
     """
 
 # =============================
@@ -197,4 +207,4 @@ def admin():
 # =============================
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=8080)
