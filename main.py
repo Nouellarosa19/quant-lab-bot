@@ -131,6 +131,9 @@ def dashboard():
     cur.execute("SELECT username FROM usuarios WHERE token=%s", (token,))
     user = cur.fetchone()
 
+    cur.close()
+    conn.close()
+
     if not user:
         return "No autorizado"
 
@@ -150,10 +153,13 @@ def admin():
 
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT username, rol FROM usuarios WHERE token=%s", (token,))
     user = cur.fetchone()
 
     if not user or user[1] != "admin":
+        cur.close()
+        conn.close()
         return "No autorizado"
 
     cur.execute("SELECT id, username, rol FROM usuarios")
@@ -161,27 +167,30 @@ def admin():
 
     tabla = ""
 
-for u in users:
-    tabla += f"""
-    <tr>
-        <td>{u[0]}</td>
-        <td>{u[1]}</td>
-        <td>{u[2]}</td>
-    </tr>
+    for u in users:
+        tabla += f"""
+        <tr>
+            <td>{u[0]}</td>
+            <td>{u[1]}</td>
+            <td>{u[2]}</td>
+        </tr>
+        """
+
+    cur.close()
+    conn.close()
+
+    return f"""
+    <h2>Panel de Administración</h2>
+
+    <table border="1" cellpadding="10">
+        <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+        </tr>
+        {tabla}
+    </table>
     """
-
-return f"""
-<h2>Panel de Administración</h2>
-
-<table border="1" cellpadding="10">
-    <tr>
-        <th>ID</th>
-        <th>Usuario</th>
-        <th>Rol</th>
-    </tr>
-    {tabla}
-</table>
-"""
 
 # =============================
 # RUN LOCAL
