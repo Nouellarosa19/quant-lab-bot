@@ -1,10 +1,10 @@
 import os
-import psycopg2
+import psycopg
 import requests
 import hmac
 import hashlib
 from datetime import datetime, timedelta
-from flask import Flask, request, redirect, session, jsonify
+from flask import Flask, request, redirect, jsonify
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key_change_this"
@@ -14,24 +14,23 @@ app.secret_key = "super_secret_key_change_this"
 # ==============================
 
 def get_db():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
+    return psycopg.connect(os.getenv("DATABASE_URL"))
 
 def crear_tablas():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(100) UNIQUE,
-            password TEXT,
-            token TEXT,
-            plan VARCHAR(20),
-            activo BOOLEAN DEFAULT FALSE,
-            expira TIMESTAMP
-        );
-    """)
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) UNIQUE,
+                password TEXT,
+                token TEXT,
+                plan VARCHAR(20),
+                activo BOOLEAN DEFAULT FALSE,
+                expira TIMESTAMP
+            );
+        """)
     conn.commit()
-    cur.close()
     conn.close()
 
 crear_tablas()
@@ -47,13 +46,12 @@ def register():
     token = os.urandom(16).hex()
 
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO usuarios (username, password, token, plan, activo) VALUES (%s,%s,%s,%s,%s)",
-        (username, password, token, "free", False)
-    )
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO usuarios (username, password, token, plan, activo) VALUES (%s,%s,%s,%s,%s)",
+            (username, password, token, "free", False)
+        )
     conn.commit()
-    cur.close()
     conn.close()
 
     return jsonify({"message": "Usuario creado", "token": token})
@@ -68,13 +66,12 @@ def login():
     password = request.json.get("password")
 
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT token FROM usuarios WHERE username=%s AND password=%s",
-        (username, password)
-    )
-    user = cur.fetchone()
-    cur.close()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT token FROM usuarios WHERE username=%s AND password=%s",
+            (username, password)
+        )
+        user = cur.fetchone()
     conn.close()
 
     if user:
@@ -91,10 +88,9 @@ def buy_premium():
     token = request.args.get("token")
 
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT username FROM usuarios WHERE token=%s", (token,))
-    user = cur.fetchone()
-    cur.close()
+    with conn.cursor() as cur:
+        cur.execute("SELECT username FROM usuarios WHERE token=%s", (token,))
+        user = cur.fetchone()
     conn.close()
 
     if not user:
@@ -126,7 +122,7 @@ def buy_premium():
     if "invoice_url" in data:
         return redirect(data["invoice_url"])
     else:
-        return str(data)
+        return jsonify(data)
 
 # ==============================
 # WEBHOOK SEGURO
@@ -154,18 +150,16 @@ def webhook():
         username = data.get("order_id")
 
         conn = get_db()
-        cur = conn.cursor()
+        with conn.cursor() as cur:
+            expiration = datetime.utcnow() + timedelta(days=30)
 
-        expiration = datetime.utcnow() + timedelta(days=30)
-
-        cur.execute("""
-            UPDATE usuarios 
-            SET plan=%s, activo=%s, expira=%s 
-            WHERE username=%s
-        """, ("premium", True, expiration, username))
+            cur.execute("""
+                UPDATE usuarios 
+                SET plan=%s, activo=%s, expira=%s 
+                WHERE username=%s
+            """, ("premium", True, expiration, username))
 
         conn.commit()
-        cur.close()
         conn.close()
 
     return "OK"
@@ -179,12 +173,11 @@ def premium():
     token = request.args.get("token")
 
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT activo, expira FROM usuarios WHERE token=%s
-    """, (token,))
-    user = cur.fetchone()
-    cur.close()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT activo, expira FROM usuarios WHERE token=%s
+        """, (token,))
+        user = cur.fetchone()
     conn.close()
 
     if not user:
