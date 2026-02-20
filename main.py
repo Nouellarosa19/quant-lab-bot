@@ -159,10 +159,29 @@ def admin():
     cur.execute("SELECT id, username, rol FROM usuarios")
     users = cur.fetchall()
 
-    return f"""
-        <h2>Admin Panel</h2>
-        <pre>{users}</pre>
+    tabla = ""
+
+for u in users:
+    tabla += f"""
+    <tr>
+        <td>{u[0]}</td>
+        <td>{u[1]}</td>
+        <td>{u[2]}</td>
+    </tr>
     """
+
+return f"""
+<h2>Panel de Administración</h2>
+
+<table border="1" cellpadding="10">
+    <tr>
+        <th>ID</th>
+        <th>Usuario</th>
+        <th>Rol</th>
+    </tr>
+    {tabla}
+</table>
+"""
 
 # =============================
 # RUN LOCAL
