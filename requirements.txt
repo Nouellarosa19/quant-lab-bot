@@ -4,3 +4,4 @@ numpy
 ta
 python-dotenv
 flask
+psycopg2-binary
