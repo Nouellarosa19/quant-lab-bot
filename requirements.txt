@@ -1,5 +1,4 @@
 flask
-psycopg2-binary
 gunicorn
-werkzeug
 requests
+psycopg2-binary
