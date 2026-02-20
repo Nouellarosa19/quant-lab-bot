@@ -2,4 +2,4 @@ flask
 psycopg2-binary
 gunicorn
 werkzeug
-request
+requests
