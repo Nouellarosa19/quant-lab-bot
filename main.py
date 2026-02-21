@@ -52,6 +52,16 @@ def create_admin():
     cur.close()
     conn.close()
 
+# 🔎 Verificar si usuario es premium
+def get_user_premium(user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT is_premium FROM users WHERE id = %s", (user_id,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    return result[0] if result else False
+
 # 🚀 Ejecutar al iniciar
 create_tables()
 create_admin()
@@ -130,13 +140,54 @@ def login():
 
     return jsonify({"error": "Credenciales inválidas"}), 401
 
-# 👑 Panel Admin
+# 📊 Ruta Premium (solo usuarios premium o admin)
+@app.route("/signals")
+def signals():
+    if not session.get("user_id"):
+        return jsonify({"error": "Debes iniciar sesión"}), 401
+
+    if not session.get("is_admin") and not get_user_premium(session.get("user_id")):
+        return jsonify({"error": "Necesitas plan premium"}), 403
+
+    return jsonify({"signal": "BTC LONG 🚀"})
+
+# 👑 Panel Admin básico
 @app.route("/admin")
 def admin_panel():
     if not session.get("is_admin"):
         return jsonify({"error": "No autorizado"}), 403
 
     return jsonify({"message": "Bienvenido Admin"})
+
+# 👥 Listar usuarios (solo admin)
+@app.route("/admin/users")
+def list_users():
+    if not session.get("is_admin"):
+        return jsonify({"error": "No autorizado"}), 403
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, email, is_admin, is_premium FROM users")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify(users)
+
+# 💎 Activar premium (solo admin)
+@app.route("/make-premium/<int:user_id>", methods=["POST"])
+def make_premium(user_id):
+    if not session.get("is_admin"):
+        return jsonify({"error": "No autorizado"}), 403
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET is_premium = TRUE WHERE id = %s", (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"message": f"Usuario {user_id} ahora es premium"})
 
 # 🚪 Logout
 @app.route("/logout")
