@@ -64,7 +64,11 @@ def home():
 # 📝 Registro
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.json
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "JSON inválido"}), 400
+
     email = data.get("email")
     password = data.get("password")
 
@@ -81,9 +85,12 @@ def register():
             (email, hashed_password)
         )
         conn.commit()
-    except Exception as e:
+    except psycopg2.errors.UniqueViolation:
         conn.rollback()
         return jsonify({"error": "Usuario ya existe"}), 400
+    except Exception:
+        conn.rollback()
+        return jsonify({"error": "Error en el servidor"}), 500
     finally:
         cur.close()
         conn.close()
@@ -93,9 +100,16 @@ def register():
 # 🔐 Login
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.json
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "JSON inválido"}), 400
+
     email = data.get("email")
     password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"error": "Faltan datos"}), 400
 
     conn = get_connection()
     cur = conn.cursor()
@@ -109,8 +123,11 @@ def login():
     if user and check_password_hash(user[1], password):
         session["user_id"] = user[0]
         session["is_admin"] = user[2]
-        return jsonify({"message": "Login correcto"})
-    
+        return jsonify({
+            "message": "Login correcto",
+            "is_admin": user[2]
+        })
+
     return jsonify({"error": "Credenciales inválidas"}), 401
 
 # 👑 Panel Admin
@@ -128,4 +145,5 @@ def logout():
     return jsonify({"message": "Sesión cerrada"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
